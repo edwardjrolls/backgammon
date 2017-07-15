@@ -15,11 +15,11 @@ Note that a gamestate is given by a length 26 vector:
 2)  Printing doesn't want to show 'X' just 'O' in the dead zone
 """
 
-# The board class, which doesn't require any inputs
+# The board class, which requires as inputs an initial gamestate, and two strategies to play against each other
 class Board:
     
     # Initialise the board
-    def __init__(self,gamestate=None,strategyA='random',strategyB='random'):
+    def __init__(self,strategyA='random',strategyB='random',gamestate=None):
         # If no gamestate given, then initialise the board
         if not gamestate:
             gamestate = self.newBoard()
@@ -315,34 +315,42 @@ class Board:
     # A turn in the game. Ask player A for a move, flip the board, ask player B for a move, flip the board
     def turn(self):
         # Player 1
+        state1 = copy.copy(self.gamestate)
         die1,die2 = [random.randint(1,6),random.randint(1,6)]
         move = self.chooseMove(self.strategyA,die1,die2)
         self.makeMove(move) # Include a sanity check here perhaps
         if max(self.gamestate)<=0:
-            return 1 # 1 for player 1 winning
+            return 1,state1,None # 1 for player 1 winning
         self.flipBoard()
         #Player 2
+        state2 = copy.copy(self.gamestate)
         die1,die2 = [random.randint(1,6),random.randint(1,6)]
         move = self.chooseMove(self.strategyB,die1,die2)
         self.makeMove(move)
         if max(self.gamestate)<=0:
-            return -1 # -1 for player 2 winning
+            return 2,state1,state2 # 2 for player 2 winning
         self.flipBoard()
-        return 0
+        return 0,state1,state2
         
     # The game environment
     def game(self):
         gameOver=0
+        history={1:[],2:[]} # A dictionary where the key is the player about to make the move and the value is the board state they face
         while not gameOver:
-            gameOver = self.turn()
+            gameOver,state1,state2 = self.turn()
+            history[1].append(state1)
+            if state2:
+                history[2].append(state2)
+        """
         if gameOver==1:
             print("Congrats to player 1!")
         else:
             print("Congrats to player 2!")
+        """
+        return gameOver,history
 
-for i in range(1000):
-    eddie = Board()
-    eddie.game()
-    print(i)
-
-
+if __name__ == '__main__':
+    for i in range(1000):
+        eddie = Board()
+        eddie.game()
+        print(i)
