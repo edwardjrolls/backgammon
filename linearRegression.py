@@ -1,11 +1,10 @@
+# Runs linear regression on a list of lists, outputs a 
+import numpy as np
 
-
-
-
-def main():
-	
-	return 0
-
-if __name__ == '__main__':
-	main()
+# Runs linear regression via the normal equation method
+def linearRegressionNormalEquation(X,y):
+    gramMat = np.matmul(np.transpose(X),X)
+    momMat = np.matmul(np.transpose(X),y)
+    beta = np.linalg.solve(gramMat,momMat)
+    return beta
 

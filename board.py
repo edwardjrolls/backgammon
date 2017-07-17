@@ -1,5 +1,6 @@
 import copy
 import random
+import numpy as np
 from sys import stdin
 """
 Note that a gamestate is given by a length 26 vector:
@@ -9,23 +10,28 @@ Note that a gamestate is given by a length 26 vector:
 """
 
 """
-2 KNOWN BUG:
+1 KNOWN BUG:
 1)  To end the game, if we have a piece at 1 and a rolle of (6,1), then the correct move is [(1,0),(0,-6)].
     Only need a minor tweak & shouldn't make a difference to who wins
-2)  Printing doesn't want to show 'X' just 'O' in the dead zone
 """
+
+# Flips a state after a move
+def flipState(state):
+    return [state[i] for i in range(23,-1,-1)]+[state[25]]+[state[24]]
 
 # The board class, which requires as inputs an initial gamestate, and two strategies to play against each other
 class Board:
     
     # Initialise the board
-    def __init__(self,strategyA='random',strategyB='random',gamestate=None):
+    def __init__(self,strategyA='random',strategyB='random',parametersA=None,parametersB=None,gamestate=None):
         # If no gamestate given, then initialise the board
         if not gamestate:
             gamestate = self.newBoard()
         self.gamestate = gamestate
         self.strategyA=strategyA
         self.strategyB=strategyB
+        self.parametersA=parametersA
+        self.parametersB=parametersB
          
     
     # Allows a board to be printed. X for away player, O for home player
@@ -65,7 +71,7 @@ class Board:
         #empty row
         string += '|' + ' '*40 + '|\n'
         # How many dead tokens
-        string += '|' + ' '*3 + 'X'*self.gamestate[25] + ' '*(15-self.gamestate[25]) + ' '*4
+        string += '|' + ' '*3 + 'X'*(-self.gamestate[25]) + ' '*(15+self.gamestate[25]) + ' '*4
         string += ' '*(15-self.gamestate[24]) + 'O'*self.gamestate[24] +' '*3 + '|\n'
         #empty row
         string += '|' + ' '*40 + '|\n'
@@ -299,12 +305,36 @@ class Board:
                 print("\nMove is not legal. Please re-enter\n")
         return moves
 
+    # Makes a move based on linear regression
+    def linRegressionMove(self,die1,die2,parameters):
+        moveList = self.legalMoveList(die1,die2)
+        if len(moveList)==0:
+            return tuple()
+        scoreList = []
+        regressionType = parameters[0]
+        beta = parameters[1]
+        for moves in moveList:
+            state = copy.copy(self.gamestate)
+            for move in moves:
+                self.changeState(state,move)
+            state = flipState(state)
+            if regressionType=='basic':
+                state = np.array([1]+state,ndmin=2)
+            score = float(np.matmul(state,beta))
+            scoreList.append((moves,score))
+        scoreList.sort(key = lambda x:x[1]) #Sort by lowest score to highest score, as we have flipped the board s
+        return scoreList[0][0]
+        
+            
+
     # Chooses a move in the game, sending to other functions depending on what the strategy is
-    def chooseMove(self,strategy,die1,die2):
+    def chooseMove(self,die1,die2,strategy='random',parameters=None):
         if strategy=='random':
             move = self.randomMove(die1,die2)
-        if strategy=='human':
+        elif strategy=='human':
             move = self.playerMove(die1,die2)
+        elif strategy=='linRegression':
+            move = self.linRegressionMove(die1,die2,parameters)
         return move
         
     # Make a move
@@ -317,7 +347,7 @@ class Board:
         # Player 1
         state1 = copy.copy(self.gamestate)
         die1,die2 = [random.randint(1,6),random.randint(1,6)]
-        move = self.chooseMove(self.strategyA,die1,die2)
+        move = self.chooseMove(die1,die2,self.strategyA,self.parametersA)
         self.makeMove(move) # Include a sanity check here perhaps
         if max(self.gamestate)<=0:
             return 1,state1,None # 1 for player 1 winning
@@ -325,7 +355,7 @@ class Board:
         #Player 2
         state2 = copy.copy(self.gamestate)
         die1,die2 = [random.randint(1,6),random.randint(1,6)]
-        move = self.chooseMove(self.strategyB,die1,die2)
+        move = self.chooseMove(die1,die2,self.strategyB,self.parametersB)
         self.makeMove(move)
         if max(self.gamestate)<=0:
             return 2,state1,state2 # 2 for player 2 winning
