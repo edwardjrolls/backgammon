@@ -18,6 +18,10 @@ Note that a gamestate is given by a length 26 vector:
 # Flips a state after a move
 def flipState(state):
     return [state[i] for i in range(23,-1,-1)]+[state[25]]+[state[24]]
+    
+# Extends a state to 50 slots (24 for player A, 24 for player B, 2 dead zones)
+def extendState(state):
+    return [max(state[i],0) for i in range(24)] + [min(state[i],0) for i in range(24)] + [state[24],state[25]]
 
 # The board class, which requires as inputs an initial gamestate, and two strategies to play against each other
 class Board:
@@ -320,9 +324,14 @@ class Board:
             state = flipState(state)
             if regressionType=='basic':
                 state = np.array([1]+state,ndmin=2)
+            elif regressionType=='extended':
+                state = extendState(state)
+                state = np.array([1]+state,ndmin=2)
+            else:
+                raise ValueError("regression type not recognised")
             score = float(np.matmul(state,beta))
             scoreList.append((moves,score))
-        scoreList.sort(key = lambda x:x[1]) #Sort by lowest score to highest score, as we have flipped the board s
+        scoreList.sort(key = lambda x:x[1]) #Sort by lowest score to highest score, as we have flipped the board
         return scoreList[0][0]
         
             
